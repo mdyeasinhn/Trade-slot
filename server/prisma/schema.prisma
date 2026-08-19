@@ -1,0 +1,261 @@
+// TradeSlot — Prisma schema
+//
+// Design rules (see AGENT.md §5):
+//   * Never assume a single trader: Business -> Trader[] -> everything else.
+//   * Auth identity (User) is kept separate from trader business configuration.
+//   * Money is stored as integer minor units (cents).
+//   * All timestamps are UTC; per-trader `timezone` is used to interpret
+//     local wall-clock times such as "tomorrow at 10am".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Authentication + identity. Deliberately free of trader/business config so
+/// the same account model can later back customers, staff and admins.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         Role     @default(TRADER)
+  trader       Trader?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([role])
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  traders   Trader[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A bookable trader. One business may own many traders (MVP seeds one).
+model Trader {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// Owning login. Nullable so a business can hold traders that do not log in
+  /// themselves (e.g. employed staff managed by the business owner).
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  name  String
+  phone String?
+
+  /// IANA timezone used to resolve local booking times to UTC instants.
+  timezone String @default("UTC")
+  /// Default working window in the trader's local time, "HH:mm".
+  workDayStart String @default("09:00")
+  workDayEnd   String @default("17:00")
+
+  /// Per-trader booking rules. Null falls back to platform configuration.
+  jobDurationMin Int?
+  bufferMin      Int?
+  bookingFee     Int?
+
+  // --- Stripe Connect -------------------------------------------------------
+  stripeAccountId      String?  @unique
+  stripeOnboardingDone Boolean  @default(false)
+  stripeChargesEnabled Boolean  @default(false)
+  stripePayoutsEnabled Boolean  @default(false)
+
+  /// WhatsApp Cloud API phone number id that routes inbound messages to this
+  /// trader. Lets several traders share one deployment.
+  whatsappPhoneNumberId String? @unique
+
+  workAreas     WorkArea[]
+  conversations Conversation[]
+  bookings      Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([stripeAccountId])
+}
+
+/// The area a trader works in on one specific date. MVP has no recurring zones.
+model WorkArea {
+  id       String @id @default(cuid())
+  traderId String
+  trader   Trader @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  /// Midnight UTC of the work date. Acts as the calendar-day key.
+  date DateTime @db.Date
+  area String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([traderId, date])
+  @@index([date])
+}
+
+/// One thread between a sender on a channel and a trader.
+model Conversation {
+  id       String @id @default(cuid())
+  traderId String
+  trader   Trader @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  channel  Channel
+  /// Channel-scoped sender identifier: WhatsApp phone number or web session id.
+  senderId String
+
+  /// Slot-filling state for the booking dialogue. Channel-neutral.
+  state Json?
+
+  messages Message[]
+  bookings Booking[]
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([traderId, channel, senderId])
+  @@index([traderId])
+  @@index([channel, senderId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId  String
+  direction MessageDirection
+  channel   Channel
+  content   String
+  timestamp DateTime
+
+  /// Provider message id, used to drop WhatsApp webhook replays.
+  externalId String? @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, timestamp])
+}
+
+model Booking {
+  id       String @id @default(cuid())
+  traderId String
+  trader   Trader @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  customerName       String
+  customerPhone      String
+  serviceDescription String?
+
+  /// Calendar day of the job, in the trader's timezone, stored as a date.
+  requestedDate DateTime @db.Date
+  /// Absolute UTC instants for the job itself (buffer excluded).
+  startTime DateTime
+  endTime   DateTime
+
+  jobDurationMin Int
+  bufferMin      Int
+  /// Booking fee in minor units, resolved server-side. Never client supplied.
+  bookingFee Int
+  currency   String @default("usd")
+
+  status  BookingStatus @default(REQUESTED)
+  payment Payment?
+
+  cancelledAt    DateTime?
+  cancelledReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([traderId, requestedDate])
+  @@index([traderId, startTime, endTime])
+  @@index([status])
+  @@index([conversationId])
+}
+
+model Payment {
+  id        String  @id @default(cuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  /// Stripe is the source of truth; these are the identifiers we reconcile on.
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+  /// Connected account that receives the funds.
+  connectedAccountId String?
+
+  amount         Int
+  applicationFee Int
+  currency       String
+  checkoutUrl    String?
+
+  status PaymentStatus @default(PENDING)
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status])
+  @@index([connectedAccountId])
+}
+
+/// Idempotency ledger for third-party webhooks (Stripe retries, WhatsApp
+/// duplicates). A unique (provider, eventId) makes replays no-ops.
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  type        String
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  error       String?
+
+  @@unique([provider, eventId])
+  @@index([provider, type])
+}
+
+enum Role {
+  TRADER
+  ADMIN
+}
+
+enum Channel {
+  WHATSAPP
+  WEB_CHAT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  PAYMENT_PENDING
+  PAID
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
