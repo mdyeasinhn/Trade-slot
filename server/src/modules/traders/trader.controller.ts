@@ -2,7 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { ok } from '../../utils/api-response';
 import { ApiError } from '../../utils/errors';
 import { param } from '../../utils/params';
-import { getTraderOrThrow, updateTrader, updateTraderSchema } from './trader.service';
+import { getTraderOrThrow, updateTrader } from './trader.service';
+import { updateTraderSchema } from './trader.validation';
 
 async function loadTrader(req: Request, res: Response, next: NextFunction) {
   try {

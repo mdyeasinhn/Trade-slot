@@ -1,30 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { z } from 'zod';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { ApiError } from '../../utils/errors';
-
-export const registerSchema = z
-  .object({
-    email: z.string().email(),
-    password: z.string().min(8, 'Password must be at least 8 characters.'),
-    name: z.string().min(1),
-    phone: z.string().optional(),
-    businessName: z.string().min(1).optional(),
-  })
-  .refine((v) => v.businessName || v.phone, {
-    message: 'A business name or phone is required to create a trader.',
-    path: ['businessName'],
-  });
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
+import type { LoginInput, RegisterInput } from './auth.validation';
 
 function signToken(userId: string): string {
   return jwt.sign({ sub: userId }, env.JWT_SECRET, {

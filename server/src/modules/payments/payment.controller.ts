@@ -1,14 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 import { ok } from '../../utils/api-response';
 import { ApiError } from '../../utils/errors';
 import { prisma } from '../../lib/prisma';
 import { createPaymentForBooking } from './payment.service';
 import { createConnectOnboardingLink, getConnectAccountStatus } from './stripe.service';
-
-export const createPaymentSchema = z.object({
-  bookingId: z.string().min(1),
-});
+import { createPaymentSchema } from './payment.validation';
 
 export async function createPaymentHandler(
   req: Request,

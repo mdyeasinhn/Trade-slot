@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { ok } from '../../utils/api-response';
-import { login, loginSchema, register, registerSchema } from './auth.service';
+import { login, register } from './auth.service';
+import { loginSchema, registerSchema } from './auth.validation';
 
 export async function registerHandler(
   req: Request,

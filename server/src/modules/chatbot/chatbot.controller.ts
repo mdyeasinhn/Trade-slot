@@ -1,22 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 import { ok } from '../../utils/api-response';
 import { ApiError } from '../../utils/errors';
 import { messagingService } from '../messaging/messaging.service';
 import { normalizeInbound, processIncomingMessage } from '../messaging/message-normalizer';
 import { bookingEngine } from '../bookings/booking.engine.instance';
+import { chatMessageSchema } from './chatbot.validation';
 
 /**
  * Web chat transport (AGENT.md §12). Plain HTTP request/response — no
  * Socket.IO. This layer only normalizes the inbound message and formats the
  * channel-neutral reply for the frontend.
  */
-
-export const chatMessageSchema = z.object({
-  traderId: z.string().min(1),
-  senderId: z.string().min(1),
-  message: z.string().min(1),
-});
 
 export async function chatMessageHandler(
   req: Request,

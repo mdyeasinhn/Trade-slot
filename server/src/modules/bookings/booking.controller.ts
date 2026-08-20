@@ -1,35 +1,16 @@
 import { NextFunction, Request, Response } from 'express';
-import { z } from 'zod';
 import { ok } from '../../utils/api-response';
 import { ApiError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { createBooking, listBookings, getBookingOrThrow, updateBookingStatus } from './booking.service';
 import { listAvailableSlots } from './scheduling.service';
 import type { SlotRequest } from './booking.types';
-
-const createBookingSchema = z.object({
-  traderId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
-  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'startTime must be HH:mm'),
-  customerName: z.string().min(1),
-  customerPhone: z.string().min(1),
-  serviceDescription: z.string().optional(),
-  conversationId: z.string().optional(),
-});
-
-const listBookingsQuerySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-});
-
-const updateStatusSchema = z.object({
-  status: z.enum(['CONFIRMED', 'PAYMENT_PENDING', 'PAID', 'COMPLETED', 'CANCELLED']),
-  cancelledReason: z.string().optional(),
-});
-
-const availabilityQuerySchema = z.object({
-  traderId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
-});
+import {
+  availabilityQuerySchema,
+  createBookingSchema,
+  listBookingsQuerySchema,
+  updateStatusSchema,
+} from './booking.validation';
 
 async function createBookingHandler(req: Request, res: Response, next: NextFunction) {
   try {

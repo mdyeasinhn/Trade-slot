@@ -2,12 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { ok } from '../../utils/api-response';
 import { ApiError } from '../../utils/errors';
 import { param } from '../../utils/params';
-import {
-  getWorkArea,
-  listWorkAreaSchema,
-  upsertWorkArea,
-  upsertWorkAreaSchema,
-} from './workArea.service';
+import { getWorkArea, upsertWorkArea } from './workArea.service';
+import { listWorkAreaSchema, upsertWorkAreaSchema } from './workArea.validation';
 
 async function upsertWorkAreaHandler(req: Request, res: Response, next: NextFunction) {
   try {

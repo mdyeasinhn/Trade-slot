@@ -9,6 +9,29 @@ import { webhooksRouter } from '../modules/webhooks/webhook.routes';
 
 export const apiRouter = Router();
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [System]
+ *     summary: Health check
+ *     description: Liveness probe. Returns 200 once the process is up.
+ *     responses:
+ *       '200':
+ *         description: Service is healthy.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [success, status]
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ */
 apiRouter.get('/health', (_req, res) => {
   res.json({ success: true, status: 'ok' });
 });
