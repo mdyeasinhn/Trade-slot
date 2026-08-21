@@ -1,30 +1,15 @@
-import { NextFunction, Request, Response } from 'express';
-import { ok } from '../../utils/api-response';
+import { Request, Response } from 'express';
+import { catchAsync } from '../../utils/catch-async';
+import { sendResponse } from '../../utils/send-response';
 import { login, register } from './auth.service';
 import { loginSchema, registerSchema } from './auth.validation';
 
-export async function registerHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const result = await register(registerSchema.parse(req.body));
-    res.status(201).json(ok(result));
-  } catch (err) {
-    next(err);
-  }
-}
+export const registerHandler = catchAsync(async (req: Request, res: Response) => {
+  const result = await register(registerSchema.parse(req.body));
+  sendResponse(res, 201, result);
+});
 
-export async function loginHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const result = await login(loginSchema.parse(req.body));
-    res.json(ok(result));
-  } catch (err) {
-    next(err);
-  }
-}
+export const loginHandler = catchAsync(async (req: Request, res: Response) => {
+  const result = await login(loginSchema.parse(req.body));
+  sendResponse(res, 200, result);
+});

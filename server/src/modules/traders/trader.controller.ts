@@ -1,31 +1,24 @@
-import { NextFunction, Request, Response } from 'express';
-import { ok } from '../../utils/api-response';
+import { Request, Response } from 'express';
+import { catchAsync } from '../../utils/catch-async';
+import { sendResponse } from '../../utils/send-response';
 import { ApiError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { getTraderOrThrow, updateTrader } from './trader.service';
 import { updateTraderSchema } from './trader.validation';
 
-async function loadTrader(req: Request, res: Response, next: NextFunction) {
-  try {
-    const trader = await getTraderOrThrow(param(req, 'id'));
-    res.json(ok(trader));
-  } catch (err) {
-    next(err);
-  }
-}
+const loadTrader = catchAsync(async (req: Request, res: Response) => {
+  const trader = await getTraderOrThrow(param(req, 'id'));
+  sendResponse(res, 200, trader);
+});
 
-async function patchTrader(req: Request, res: Response, next: NextFunction) {
-  try {
-    const traderId = param(req, 'id');
-    if (req.auth?.traderId && req.auth.traderId !== traderId) {
-      throw ApiError.forbidden();
-    }
-    const input = updateTraderSchema.parse(req.body);
-    const trader = await updateTrader(traderId, input);
-    res.json(ok(trader));
-  } catch (err) {
-    next(err);
+const patchTrader = catchAsync(async (req: Request, res: Response) => {
+  const traderId = param(req, 'id');
+  if (req.auth?.traderId && req.auth.traderId !== traderId) {
+    throw ApiError.forbidden();
   }
-}
+  const input = updateTraderSchema.parse(req.body);
+  const trader = await updateTrader(traderId, input);
+  sendResponse(res, 200, trader);
+});
 
 export const traderController = { loadTrader, patchTrader };

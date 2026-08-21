@@ -1,6 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
-import { ok } from '../../utils/api-response';
-import { ApiError } from '../../utils/errors';
+import { Request, Response } from 'express';
+import { catchAsync } from '../../utils/catch-async';
+import { sendResponse } from '../../utils/send-response';
 import { messagingService } from '../messaging/messaging.service';
 import { normalizeInbound, processIncomingMessage } from '../messaging/message-normalizer';
 import { bookingEngine } from '../bookings/booking.engine.instance';
@@ -12,29 +12,21 @@ import { chatMessageSchema } from './chatbot.validation';
  * channel-neutral reply for the frontend.
  */
 
-export async function chatMessageHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const input = chatMessageSchema.parse(req.body);
+export const chatMessageHandler = catchAsync(async (req: Request, res: Response) => {
+  const input = chatMessageSchema.parse(req.body);
 
-    const normalized = normalizeInbound({
-      channel: 'WEB_CHAT',
-      senderId: input.senderId,
-      content: input.message,
-      role: 'CUSTOMER',
-    });
+  const normalized = normalizeInbound({
+    channel: 'WEB_CHAT',
+    senderId: input.senderId,
+    content: input.message,
+    role: 'CUSTOMER',
+  });
 
-    const reply = await processIncomingMessage(
-      normalized,
-      { traderId: input.traderId },
-      { engine: bookingEngine, persistence: messagingService },
-    );
+  const reply = await processIncomingMessage(
+    normalized,
+    { traderId: input.traderId },
+    { engine: bookingEngine, persistence: messagingService },
+  );
 
-    res.json(ok(reply));
-  } catch (err) {
-    next(err);
-  }
-}
+  sendResponse(res, 200, reply);
+});

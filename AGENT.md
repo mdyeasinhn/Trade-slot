@@ -4,7 +4,7 @@ TradeSlot Backend — Agent Instructions
 
 TradeSlot is a trade booking platform MVP.
 
-The backend must support one working booking flow end-to-end while keeping the architecture ready for future expansion to:
+The backend supports one working booking flow end-to-end while keeping the architecture ready for future expansion to:
 
 multiple traders under one business
 
@@ -20,9 +20,9 @@ referrals and loyalty
 
 Current stack:
 
-Node.js
+Node.js >= 20
 
-Express.js
+Express 5
 
 TypeScript
 
@@ -30,9 +30,15 @@ PostgreSQL
 
 Prisma ORM
 
-Stripe Connect
+Stripe Connect (Checkout Sessions)
 
 WhatsApp Cloud API
+
+Zod (validation)
+
+Vitest + Supertest (testing)
+
+swagger-jsdoc + swagger-ui-express (API docs)
 
 Do not over-engineer the MVP. Build the smallest production-minded implementation that satisfies the current requirements.
 
@@ -62,79 +68,94 @@ call shared application services
 
 format the outbound response for the channel
 
-3. Recommended Backend Structure
+3. Backend Structure (as implemented)
 
-src/
-├── app.ts
-├── server.ts
-├── config/
-│   ├── env.ts
-│   └── constants.ts
-│
-├── modules/
-│   ├── auth/
-│   ├── users/
-│   ├── businesses/
-│   ├── traders/
-│   ├── workAreas/
-│   ├── messaging/
-│   │   ├── messaging.controller.ts
-│   │   ├── messaging.service.ts
-│   │   ├── message-normalizer.ts
-│   │   └── types.ts
-│   │
-│   ├── chatbot/
-│   ├── whatsapp/
-│   │   ├── whatsapp.controller.ts
-│   │   ├── whatsapp.service.ts
-│   │   └── whatsapp.types.ts
-│   │
-│   ├── bookings/
-│   │   ├── booking.controller.ts
-│   │   ├── booking.service.ts
-│   │   ├── booking.engine.ts
-│   │   ├── scheduling.service.ts
-│   │   └── booking.types.ts
-│   │
-│   ├── payments/
-│   │   ├── payment.controller.ts
-│   │   ├── payment.service.ts
-│   │   └── stripe.service.ts
-│   │
-│   └── webhooks/
-│       ├── stripe.webhook.ts
-│       └── whatsapp.webhook.ts
-│
-├── middleware/
-│   ├── auth.middleware.ts
-│   ├── error.middleware.ts
-│   └── validation.middleware.ts
-│
-├── lib/
-│   ├── prisma.ts
-│   └── stripe.ts
-│
-├── utils/
-│   ├── date.ts
-│   ├── api-response.ts
-│   └── errors.ts
-│
-└── routes/
-    └── index.ts
+server/
+├── prisma/
+│   ├── schema.prisma
+│   ├── seed.ts
+│   └── sql/
+│       └── 001_booking_no_overlap.sql
+├── tests/
+│   ├── helpers.ts
+│   ├── booking-dialogue.test.ts
+│   ├── booking-flow.integration.test.ts
+│   ├── date.test.ts
+│   └── stripe-webhook.test.ts
+└── src/
+    ├── app.ts
+    ├── server.ts
+    ├── swagger.ts
+    ├── config/
+    │   ├── env.ts
+    │   └── constants.ts
+    │
+    ├── modules/
+    │   ├── auth/            (controller, service, routes, validation)
+    │   ├── users/           (users.controller, user.routes)
+    │   ├── businesses/      (business.controller)
+    │   ├── traders/         (controller, service, routes, validation)
+    │   ├── workAreas/       (controller, service, validation)
+    │   ├── messaging/
+    │   │   ├── message-normalizer.ts
+    │   │   ├── messaging.service.ts
+    │   │   └── types.ts
+    │   │
+    │   ├── chatbot/         (controller, routes, validation)
+    │   ├── whatsapp/        (whatsapp.controller, whatsapp.service)
+    │   │
+    │   ├── bookings/
+    │   │   ├── booking.controller.ts
+    │   │   ├── booking.service.ts
+    │   │   ├── booking.engine.ts        (transport-agnostic dialogue engine)
+    │   │   ├── booking.engine.instance.ts (Prisma-backed singleton wiring)
+    │   │   ├── scheduling.service.ts
+    │   │   ├── booking.routes.ts
+    │   │   └── booking.validation.ts
+    │   │
+    │   ├── payments/
+    │   │   ├── payment.controller.ts
+    │   │   ├── payment.service.ts
+    │   │   ├── stripe.service.ts
+    │   │   ├── payment.routes.ts
+    │   │   └── payment.validation.ts
+    │   │
+    │   └── webhooks/
+    │       ├── webhook.routes.ts
+    │       ├── webhook.controller.ts
+    │       └── stripe.webhook.ts
+    │
+    ├── middleware/
+    │   ├── auth.middleware.ts
+    │   ├── error.middleware.ts
+    │   └── validation.middleware.ts
+    │
+    ├── lib/
+    │   ├── prisma.ts
+    │   └── stripe.ts
+    │
+    ├── utils/
+    │   ├── api-response.ts
+    │   ├── catch-async.ts
+    │   ├── date.ts
+    │   ├── errors.ts
+    │   ├── params.ts
+    │   └── send-response.ts
+    │
+    └── routes/
+        └── index.ts
 
 Use feature/module boundaries rather than one huge controller/service file.
 
-4. Initial MVP Modules
-
-At minimum, implement these backend modules:
+4. Modules
 
 Auth
 
-Responsible for trader/user authentication.
+Trader/user registration and login. Registration creates a User plus a Business and an owning Trader in one transaction and returns a JWT.
 
 Users
 
-Customer/trader identity data. Keep user data separate from trader-specific business configuration.
+Customer/trader identity data (`User`). Deliberately free of trader business configuration; `Trader.userId` is nullable so a business can hold staff traders that do not log in.
 
 Businesses
 
@@ -144,46 +165,47 @@ Do not hard-code the database as if the platform can only ever have one trader.
 
 Traders
 
-Trader profile and Stripe Connect account information.
+Trader profile, timezone, working window ("HH:mm" local), per-trader booking rule overrides (jobDurationMin/bufferMin/bookingFee — null falls back to platform config), Stripe Connect account state, and WhatsApp phone number id routing.
 
 Work Areas
 
-Stores the trader's work area for a specific date.
+Stores the trader's work area for a specific date (`@db.Date`, unique on `(traderId, date)`).
 
 MVP does not require recurring weekly zones.
 
 Messaging
 
-Shared messaging abstraction used by Web Chat and WhatsApp.
+Shared messaging abstraction used by Web Chat and WhatsApp: normalizer, service, types.
 
 Chatbot
 
-Web chatbot transport/UI-facing API only. It must call the shared messaging/application layer.
+Web chatbot transport API only (`POST /api/chat/message`). It calls the shared messaging/application layer and returns a channel-neutral `ChatReply`.
 
 WhatsApp
 
-WhatsApp webhook handling and outbound WhatsApp messages.
+WhatsApp webhook verification/handling and outbound WhatsApp messages. Inbound messages are routed to a trader via `Trader.whatsappPhoneNumberId`.
 
 Bookings
 
-Core booking creation, slot availability, confirmation, duration and travel buffer rules.
+Core booking creation, slot availability, confirmation, duration and travel buffer rules. The booking engine is transport-agnostic (`booking.engine.ts`); the Prisma-backed singleton lives in `booking.engine.instance.ts` and persists dialogue state on `Conversation.state`.
 
 Payments
 
-Stripe Connect payment creation, application fee, connected-account transfer and payment state handling.
+Stripe Checkout Session creation with connected-account transfer and application fee, payment state handling, and Stripe Connect onboarding/status endpoints.
 
 Webhooks
 
-Third-party webhook entry points. Stripe webhook handling must be separated from normal API controllers.
+Third-party webhook entry points (`webhook.routes.ts`, `webhook.controller.ts`, `stripe.webhook.ts`). Stripe webhook handling uses the raw body for signature verification and is separated from normal API controllers.
 
 5. Database Design Principles
 
-Use Prisma with PostgreSQL.
+Use Prisma with PostgreSQL. `server/prisma/schema.prisma` is the source of truth — read it before assuming any model shape.
 
 Never assume a single trader in the schema.
 
 Important relationships:
 
+User 1—0..1 Trader
 Business
   └── Traders
         ├── WorkAreas
@@ -196,151 +218,27 @@ Conversation
 Booking
   └── Payment
 
-Important fields should be indexed appropriately, especially:
+Key implementation details already in place:
 
-traderId
+Money is stored as integer minor units (cents), never floats.
 
-businessId
+All timestamps are UTC. Per-trader `timezone` (IANA) resolves local wall-clock times like "tomorrow at 10am"; `requestedDate` is the calendar day in the trader's timezone.
 
-date
+`Conversation` is unique on `(traderId, channel, senderId)` and holds slot-filling `state` (Json).
 
-booking status
+`Message.direction` (INBOUND/OUTBOUND) and unique `externalId` drop WhatsApp webhook replays.
 
-conversation sender/channel
+`Payment` tracks `stripeCheckoutSessionId`, `stripePaymentIntentId`, `connectedAccountId`, `checkoutUrl`, and a `PaymentStatus` enum.
 
-Stripe payment/connected account IDs
+`WebhookEvent` is an idempotency ledger, unique on `(provider, eventId)`, so Stripe retries and WhatsApp duplicates are no-ops.
 
-For a trader's daily work area, enforce uniqueness on:
+Enums: `Role` (TRADER/ADMIN), `Channel` (WHATSAPP/WEB_CHAT), `MessageDirection`, `BookingStatus` (REQUESTED, CONFIRMED, PAYMENT_PENDING, PAID, COMPLETED, CANCELLED), `PaymentStatus`.
 
-(traderId, date)
+Important fields are indexed appropriately, especially traderId, businessId, date, booking status, conversation sender/channel, and Stripe payment/connected account IDs.
 
-Store monetary values as integer minor units (for example cents), not floating point numbers.
+6. Messaging Contract
 
-Store timestamps in UTC.
-
-6. Suggested Prisma Models
-
-Use these as the starting point, then adapt them to the existing project conventions.
-
-model Business {
-  id        String   @id @default(cuid())
-  name      String
-  traders   Trader[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Trader {
-  id                    String   @id @default(cuid())
-  businessId            String
-  business              Business @relation(fields: [businessId], references: [id])
-  name                  String
-  email                 String   @unique
-  stripeAccountId       String?
-  stripeOnboardingDone  Boolean  @default(false)
-  workAreas             WorkArea[]
-  conversations         Conversation[]
-  bookings              Booking[]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([businessId])
-}
-
-model WorkArea {
-  id        String   @id @default(cuid())
-  traderId  String
-  trader    Trader   @relation(fields: [traderId], references: [id])
-  date      DateTime
-  area      String
-  createdAt DateTime @default(now())
-
-  @@unique([traderId, date])
-  @@index([date])
-}
-
-model Conversation {
-  id        String   @id @default(cuid())
-  traderId  String
-  trader    Trader   @relation(fields: [traderId], references: [id])
-  channel   Channel
-  senderId  String
-  messages  Message[]
-  bookings  Booking[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([traderId])
-  @@index([channel, senderId])
-}
-
-model Message {
-  id             String       @id @default(cuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  senderId       String
-  content        String
-  channel        Channel
-  timestamp      DateTime
-  createdAt      DateTime     @default(now())
-
-  @@index([conversationId, timestamp])
-}
-
-model Booking {
-  id             String        @id @default(cuid())
-  traderId       String
-  trader         Trader         @relation(fields: [traderId], references: [id])
-  conversationId String?
-  conversation   Conversation?  @relation(fields: [conversationId], references: [id])
-  customerName   String
-  customerPhone  String
-  requestedDate  DateTime
-  startTime      DateTime
-  endTime        DateTime
-  jobDurationMin Int
-  bufferMin      Int
-  bookingFee     Int
-  status         BookingStatus
-  payment        Payment?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  @@index([traderId, requestedDate])
-  @@index([traderId, startTime, endTime])
-}
-
-model Payment {
-  id                    String   @id @default(cuid())
-  bookingId             String   @unique
-  booking               Booking  @relation(fields: [bookingId], references: [id])
-  stripePaymentIntentId String   @unique
-  amount                Int
-  applicationFee        Int
-  status                String
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
-enum Channel {
-  WHATSAPP
-  WEB_CHAT
-}
-
-enum BookingStatus {
-  REQUESTED
-  CONFIRMED
-  PAYMENT_PENDING
-  PAID
-  COMPLETED
-  CANCELLED
-}
-
-Do not blindly copy this schema if the existing backend already has equivalent models. Extend the current design instead of creating duplicates.
-
-7. Messaging Contract
-
-All inbound channels must normalize to one interface.
+All inbound channels normalize to one interface (see `src/modules/messaging/types.ts`):
 
 export type MessageChannel = 'WHATSAPP' | 'WEB_CHAT';
 
@@ -351,15 +249,17 @@ export interface NormalizedMessage {
   timestamp: Date;
 }
 
-The core processing function should look conceptually like:
+The core processing function is:
 
-processIncomingMessage(message: NormalizedMessage)
+processIncomingMessage(message: NormalizedMessage, options: ProcessInboundOptions)
+
+with `ProcessInboundOptions = { traderId, senderRole?, externalId? }`.
 
 That function must not contain WhatsApp-specific code.
 
-Web Chat and WhatsApp should both eventually call this same flow.
+Web Chat and WhatsApp both call this same flow. Replies use the channel-neutral `ChatReply` model (`text` plus optional `actions`: text prompts, `slot_choice`, or `payment_link`) which each channel renders natively.
 
-8. Booking Engine Rules
+7. Booking Engine Rules
 
 The booking engine is the most important domain service.
 
@@ -369,19 +269,19 @@ A trader has a work area for a specific date.
 
 A customer requests a service/date/time.
 
-The system checks availability.
+The system checks availability against the trader's local working window (`workDayStart`–`workDayEnd` in their timezone).
 
-Each job has a fixed duration.
+Each job has a fixed duration (per-trader override or platform default).
 
 A fixed travel buffer must exist between jobs.
 
 Live map/routing calculations are out of scope.
 
-The booking cannot overlap another booking plus its required buffer.
+The booking cannot overlap another active booking plus its required buffer.
 
 Two customers must not be able to confirm the same slot concurrently.
 
-Example configuration:
+Example configuration (env defaults):
 
 JOB_DURATION_MINUTES=60
 TRAVEL_BUFFER_MINUTES=30
@@ -391,27 +291,34 @@ CURRENCY=usd
 
 Availability checks must be performed on the backend. Never trust a frontend availability check for final booking creation.
 
-Use a database transaction and/or appropriate constraints/locking strategy to avoid double booking under concurrency.
+Concurrency strategy (implemented):
 
-9. Booking Flow
+Primary mechanism: a per-`(traderId, date)` advisory lock held inside a Prisma transaction during booking creation.
+
+Backstop: a PostgreSQL exclusion constraint (`booking_no_overlap` in `prisma/sql/001_booking_no_overlap.sql`) using `btree_gist` + `tstzrange` refuses overlapping active bookings at the database level. Apply it with `npm run db:constraints`.
+
+8. Booking Flow
 
 Web Chat
 
 Customer message
+  -> POST /api/chat/message
   -> normalize
   -> processIncomingMessage
-  -> identify booking intent
+  -> identify booking intent (slot-filling state machine)
   -> check work area
   -> check slots
   -> offer/confirm slot
   -> create booking
-  -> create Stripe payment
-  -> return payment URL
+  -> create Stripe Checkout session
+  -> return payment URL as a payment_link action
 
 WhatsApp
 
 WhatsApp webhook
-  -> verify request
+  -> verify request signature
+  -> resolve trader by phone number id
+  -> dedupe by message externalId
   -> normalize message
   -> processIncomingMessage
   -> shared booking engine
@@ -420,23 +327,25 @@ WhatsApp webhook
 
 The same booking service must be used in both flows.
 
-10. Stripe Connect Rules
+9. Stripe Connect Rules
 
 Stripe is the source of truth for payment state.
 
 Do not mark a booking as PAID merely because a frontend success page was loaded.
 
-Recommended flow:
+Implemented flow:
 
 Booking confirmed
       ↓
-Create Stripe PaymentIntent / Checkout Session
+Create Stripe Checkout Session (connected account + application fee)
       ↓
 Customer pays
       ↓
 Stripe webhook
       ↓
-Verify webhook signature
+Verify webhook signature (raw body)
+      ↓
+Record event in WebhookEvent ledger (idempotent)
       ↓
 Update Payment
       ↓
@@ -454,25 +363,29 @@ Store:
 
 connected account ID
 
-Stripe payment/checkout identifier
+Stripe checkout session / payment intent identifiers
 
 application fee amount
 
 payment status
 
-Use idempotent webhook processing so Stripe retries do not create duplicate state transitions or records.
+Webhook processing is idempotent via the `WebhookEvent` ledger so Stripe retries do not create duplicate state transitions or records.
 
-11. WhatsApp Rules
+10. WhatsApp Rules
 
 WhatsApp is an inbound/outbound transport channel, not the booking engine.
 
 Responsibilities of the WhatsApp layer:
 
-verify webhook requests
+verify webhook requests (signature + verify token handshake)
 
 parse inbound message payloads
 
+dedupe replays via `Message.externalId`
+
 normalize inbound data
+
+resolve the target trader via `whatsappPhoneNumberId`
 
 call the shared messaging/booking flow
 
@@ -480,32 +393,35 @@ send responses back to the user's WhatsApp number
 
 Do not put slot calculation, payment business rules, or booking persistence directly in whatsapp.controller.ts.
 
-12. Web Chat Rules
+11. Web Chat Rules
 
 The MVP web chatbot does not require Socket.IO.
 
 Use normal HTTP request/response unless real-time functionality is explicitly required.
 
-Suggested flow:
+Flow:
 
 POST /api/chat/message
 
 Request:
 
 {
-  "conversationId": "...",
-  "senderId": "...",
+  "traderId": "...",
+  "senderId": "web-session-123",
   "message": "I want a booking tomorrow at 10am"
 }
 
-The API should return a channel-neutral response model that the frontend can render.
+The API returns a channel-neutral `ChatReply` that the frontend can render.
 
 Do not introduce WebSockets just for chat unless a concrete requirement exists for live updates, typing indicators, or streaming responses.
 
-13. Suggested API Endpoints
+12. API Endpoints (as implemented)
 
-POST   /api/auth/login
 POST   /api/auth/register
+POST   /api/auth/login
+
+GET    /api/users/me
+GET    /api/businesses/:id
 
 GET    /api/traders/:id
 PATCH  /api/traders/:id
@@ -515,33 +431,37 @@ GET    /api/traders/:id/work-area?date=YYYY-MM-DD
 
 POST   /api/chat/message
 
-GET    /api/webhooks/whatsapp
+GET    /api/bookings/availability?traderId=...&date=YYYY-MM-DD   (public)
+POST   /api/bookings                                             (auth)
+GET    /api/bookings?date=YYYY-MM-DD                             (auth)
+GET    /api/bookings/:id                                         (auth)
+PATCH  /api/bookings/:id/status                                  (auth)
+
+POST   /api/payments/create                                      (auth)
+POST   /api/stripe/connect/onboard                               (auth)
+GET    /api/stripe/connect/status                                (auth)
+
+GET    /api/webhooks/whatsapp                                    (verification)
 POST   /api/webhooks/whatsapp
+POST   /api/webhooks/stripe                                      (raw body + signature)
 
-POST   /api/bookings
-GET    /api/bookings
-GET    /api/bookings/:id
-PATCH  /api/bookings/:id/status
+GET    /api/health
 
-POST   /api/payments/create
-POST   /api/webhooks/stripe
-
-POST   /api/stripe/connect/onboard
-GET    /api/stripe/connect/status
+Interactive OpenAPI docs are served at `/api-docs` (spec at `/api-docs.json`). Every endpoint is documented with `@openapi` JSDoc blocks next to its route definition — keep these up to date when changing endpoints.
 
 Keep route names predictable and REST-like.
 
-14. Validation
+13. Validation
 
 Every external request must be validated before reaching business logic.
 
-Prefer a validation library already used by the project. If none exists, use a standard TypeScript validation library such as Zod.
+Validation uses Zod (`zod`), with per-module `*.validation.ts` schemas applied through `validation.middleware.ts`.
 
 Validate:
 
 IDs
 
-dates/times
+dates/times ("YYYY-MM-DD", "HH:mm")
 
 channel values
 
@@ -553,13 +473,17 @@ required customer information
 
 Stripe webhook payloads/signatures
 
-Never trust arbitrary amounts supplied by the frontend. Booking fees should come from backend configuration/database rules.
+Never trust arbitrary amounts supplied by the frontend. Booking fees are resolved server-side from per-trader overrides or backend configuration.
 
-15. Error Handling
+14. Error Handling
 
-Use consistent API errors.
+Use consistent API envelopes.
 
-Example:
+Success:
+
+{ "success": true, "message": "optional", "data": { ... } }
+
+Error:
 
 {
   "success": false,
@@ -579,41 +503,70 @@ stack traces in production responses
 
 internal implementation details
 
-16. Environment Variables
+15. Environment Variables
 
-Use a validated environment configuration.
+Environment configuration is validated with Zod at startup (`src/config/env.ts`) — the process fails fast with a readable list of issues. See `server/.env.example`.
 
-Example:
-
-NODE_ENV=development
+NODE_ENV=development|test|production
 PORT=4000
+
+CORS_ORIGINS=http://localhost:3000     (comma-separated)
+API_BASE_URL=http://localhost:4000
+CLIENT_BASE_URL=http://localhost:3000
+
 DATABASE_URL=
 
 JWT_SECRET=
+JWT_EXPIRES_IN=7d
 
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 STRIPE_CURRENCY=usd
-BOOKING_FEE=5000
-APPLICATION_FEE=500
 
 WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_VERIFY_TOKEN=
 WHATSAPP_APP_SECRET=
+WHATSAPP_API_VERSION=v21.0
 
 JOB_DURATION_MINUTES=60
 TRAVEL_BUFFER_MINUTES=30
+BOOKING_FEE=5000
+APPLICATION_FEE=500
+
+WORK_DAY_START=09:00
+WORK_DAY_END=17:00
+DEFAULT_TIMEZONE=UTC
 
 Never commit real secrets.
 
-Commit .env.example, not .env.
+Commit `.env.example`, not `.env`.
+
+16. Commands
+
+Run from `server/`:
+
+npm run dev              # tsx watch src/server.ts
+npm run build            # tsc -> dist/
+npm start                # node dist/server.js
+npm run typecheck        # tsc --noEmit
+
+npm run prisma:generate  # prisma generate
+npm run prisma:migrate   # prisma migrate dev
+npm run prisma:deploy    # prisma migrate deploy
+npm run db:constraints   # apply booking_no_overlap exclusion constraint
+npm run db:seed          # seed dev data
+
+npm test                 # vitest run
+npm run test:watch       # vitest
+
+After changing `schema.prisma`: run `prisma:migrate`, then `db:constraints` (the exclusion constraint lives outside Prisma migrations).
 
 17. Testing Priorities
 
-The most important tests are integration tests around the real booking flow.
+Tests use Vitest (+ Supertest). Integration suites live in `server/tests/` and skip automatically (via `describeDb` in `helpers.ts`) when no PostgreSQL server is reachable.
 
-Minimum scenarios:
+Most important tests are integration tests around the real booking flow:
 
 Trader creates/updates a daily work area.
 
@@ -638,6 +591,8 @@ Replayed Stripe webhook is idempotent.
 Payment link is returned to Web Chat.
 
 Payment link is sent through WhatsApp.
+
+Existing suites: `booking-dialogue.test.ts`, `booking-flow.integration.test.ts`, `date.test.ts`, `stripe-webhook.test.ts`.
 
 Do not consider the MVP complete until the booking and payment path works end-to-end.
 

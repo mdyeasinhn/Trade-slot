@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { env } from '../../config/env';
 import { ApiError } from '../../utils/errors';
 import { prisma } from '../../lib/prisma';
@@ -6,7 +6,8 @@ import { messagingService } from '../messaging/messaging.service';
 import { normalizeInbound, processIncomingMessage } from '../messaging/message-normalizer';
 import { bookingEngine } from '../bookings/booking.engine.instance';
 import { sendWhatsAppMessage } from './whatsapp.service';
-import { ok } from '../../utils/api-response';
+import { catchAsync } from '../../utils/catch-async';
+import { sendEmpty } from '../../utils/send-response';
 
 /**
  * WhatsApp webhook (AGENT.md §11). Only verifies, parses, normalizes and
@@ -57,47 +58,43 @@ async function resolveTraderByPhoneNumberId(phoneNumberId: string) {
   return trader;
 }
 
-export async function handleInbound(req: Request, res: Response, next: NextFunction) {
-  try {
-    const payload = req.body as WhatsAppWebhookPayload;
+export const handleInbound = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body as WhatsAppWebhookPayload;
 
-    const changes = payload.entry?.[0]?.changes?.[0];
-    const value = changes?.value;
-    const phoneNumberId = value?.metadata?.phone_number_id;
-    const message = value?.messages?.[0];
+  const changes = payload.entry?.[0]?.changes?.[0];
+  const value = changes?.value;
+  const phoneNumberId = value?.metadata?.phone_number_id;
+  const message = value?.messages?.[0];
 
-    // Non-message notifications (statuses, etc.) are acknowledged.
-    if (!phoneNumberId || !message?.from || !message.text?.body) {
-      res.status(200).json(ok(null));
-      return;
-    }
-
-    const trader = await resolveTraderByPhoneNumberId(phoneNumberId);
-
-    const normalized = normalizeInbound({
-      channel: 'WHATSAPP',
-      senderId: message.from,
-      content: message.text.body,
-      externalId: message.id,
-      role: 'CUSTOMER',
-      timestamp: message.timestamp
-        ? new Date(Number(message.timestamp) * 1000)
-        : undefined,
-    });
-
-    const reply = await processIncomingMessage(normalized, { traderId: trader.id }, {
-      engine: bookingEngine,
-      persistence: messagingService,
-    });
-
-    // Outbound WhatsApp send is best-effort after the message is persisted.
-    await sendWhatsAppMessage(message.from, reply.text).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error('Failed to send WhatsApp reply:', err);
-    });
-
-    res.status(200).json(ok(null));
-  } catch (err) {
-    next(err);
+  // Non-message notifications (statuses, etc.) are acknowledged.
+  if (!phoneNumberId || !message?.from || !message.text?.body) {
+    sendEmpty(res);
+    return;
   }
-}
+
+  const trader = await resolveTraderByPhoneNumberId(phoneNumberId);
+
+  const normalized = normalizeInbound({
+    channel: 'WHATSAPP',
+    senderId: message.from,
+    content: message.text.body,
+    externalId: message.id,
+    role: 'CUSTOMER',
+    timestamp: message.timestamp
+      ? new Date(Number(message.timestamp) * 1000)
+      : undefined,
+  });
+
+  const reply = await processIncomingMessage(normalized, { traderId: trader.id }, {
+    engine: bookingEngine,
+    persistence: messagingService,
+  });
+
+  // Outbound WhatsApp send is best-effort after the message is persisted.
+  await sendWhatsAppMessage(message.from, reply.text).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('Failed to send WhatsApp reply:', err);
+  });
+
+  sendEmpty(res);
+});
