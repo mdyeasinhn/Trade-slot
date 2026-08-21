@@ -2,11 +2,9 @@ import cors from 'cors';
 import express, { Express, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
 import { errorMiddleware } from './middleware/error.middleware';
 import { apiRouter } from './routes';
-import { swaggerSpec } from './swagger';
 
 export function createApp(): Express {
   const app = express();
@@ -35,14 +33,6 @@ export function createApp(): Express {
   app.use(express.json());
 
   app.use('/api', apiRouter);
-
-  // API documentation (Swagger UI). The raw spec is also available as JSON.
-  if (env.NODE_ENV !== 'production') {
-    app.get('/api-docs.json', (_req, res) => {
-      res.json(swaggerSpec);
-    });
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  }
 
   // 404 for anything unmatched.
   app.use((_req: Request, res: Response) => {
