@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { createBooking, listBookings, getBookingOrThrow, updateBookingStatus } from './booking.service';
 import { listAvailableSlots } from './scheduling.service';
@@ -23,7 +23,7 @@ const createBookingHandler = catchAsync(async (req: Request, res: Response) => {
 const listBookingsHandler = catchAsync(async (req: Request, res: Response) => {
   const { date } = listBookingsQuerySchema.parse(req.query);
   const traderId = req.auth?.traderId;
-  if (!traderId) throw ApiError.forbidden();
+  if (!traderId) throw AppError.forbidden();
   const bookings = await listBookings(traderId, { date });
   sendResponse(res, 200, bookings);
 });
@@ -31,7 +31,7 @@ const listBookingsHandler = catchAsync(async (req: Request, res: Response) => {
 const getBookingHandler = catchAsync(async (req: Request, res: Response) => {
   const booking = await getBookingOrThrow(param(req, 'id'));
   if (req.auth?.traderId && booking.traderId !== req.auth.traderId) {
-    throw ApiError.forbidden();
+    throw AppError.forbidden();
   }
   sendResponse(res, 200, booking);
 });

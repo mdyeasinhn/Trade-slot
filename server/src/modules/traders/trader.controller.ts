@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { getTraderOrThrow, updateTrader } from './trader.service';
 import { updateTraderSchema } from './trader.validation';
@@ -14,7 +14,7 @@ const loadTrader = catchAsync(async (req: Request, res: Response) => {
 const patchTrader = catchAsync(async (req: Request, res: Response) => {
   const traderId = param(req, 'id');
   if (req.auth?.traderId && req.auth.traderId !== traderId) {
-    throw ApiError.forbidden();
+    throw AppError.forbidden();
   }
   const input = updateTraderSchema.parse(req.body);
   const trader = await updateTrader(traderId, input);

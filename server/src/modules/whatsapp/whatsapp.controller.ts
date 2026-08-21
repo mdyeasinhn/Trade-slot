@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { env } from '../../config/env';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { prisma } from '../../lib/prisma';
 import { messagingService } from '../messaging/messaging.service';
 import { normalizeInbound, processIncomingMessage } from '../messaging/message-normalizer';
@@ -24,7 +24,7 @@ export async function verifyWebhook(req: Request, res: Response): Promise<void> 
     res.type('text/plain').send(String(challenge));
     return;
   }
-  throw ApiError.forbidden('WhatsApp webhook verification failed.');
+  throw AppError.forbidden('WhatsApp webhook verification failed.');
 }
 
 interface WhatsAppWebhookPayload {
@@ -51,7 +51,7 @@ async function resolveTraderByPhoneNumberId(phoneNumberId: string) {
     where: { whatsappPhoneNumberId: phoneNumberId },
   });
   if (!trader) {
-    throw ApiError.notFound(
+    throw AppError.notFound(
       `No trader configured for WhatsApp phone number id "${phoneNumberId}".`,
     );
   }

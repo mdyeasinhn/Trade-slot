@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import type { UpdateTraderInput } from './trader.validation';
 
 export async function getTraderOrThrow(traderId: string) {
@@ -10,7 +10,7 @@ export async function getTraderOrThrow(traderId: string) {
       user: { select: { id: true, email: true } },
     },
   });
-  if (!trader) throw ApiError.notFound('Trader not found.');
+  if (!trader) throw AppError.notFound('Trader not found.');
   return trader;
 }
 

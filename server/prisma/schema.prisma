@@ -13,7 +13,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 /// Authentication + identity. Deliberately free of trader/business config so
@@ -55,7 +54,7 @@ model Trader {
   phone String?
 
   /// IANA timezone used to resolve local booking times to UTC instants.
-  timezone String @default("UTC")
+  timezone     String @default("UTC")
   /// Default working window in the trader's local time, "HH:mm".
   workDayStart String @default("09:00")
   workDayEnd   String @default("17:00")
@@ -66,10 +65,10 @@ model Trader {
   bookingFee     Int?
 
   // --- Stripe Connect -------------------------------------------------------
-  stripeAccountId      String?  @unique
-  stripeOnboardingDone Boolean  @default(false)
-  stripeChargesEnabled Boolean  @default(false)
-  stripePayoutsEnabled Boolean  @default(false)
+  stripeAccountId      String? @unique
+  stripeOnboardingDone Boolean @default(false)
+  stripeChargesEnabled Boolean @default(false)
+  stripePayoutsEnabled Boolean @default(false)
 
   /// WhatsApp Cloud API phone number id that routes inbound messages to this
   /// trader. Lets several traders share one deployment.
@@ -162,19 +161,19 @@ model Booking {
   /// Calendar day of the job, in the trader's timezone, stored as a date.
   requestedDate DateTime @db.Date
   /// Absolute UTC instants for the job itself (buffer excluded).
-  startTime DateTime
-  endTime   DateTime
+  startTime     DateTime
+  endTime       DateTime
 
   jobDurationMin Int
   bufferMin      Int
   /// Booking fee in minor units, resolved server-side. Never client supplied.
-  bookingFee Int
-  currency   String @default("usd")
+  bookingFee     Int
+  currency       String @default("usd")
 
   status  BookingStatus @default(REQUESTED)
   payment Payment?
 
-  cancelledAt    DateTime?
+  cancelledAt     DateTime?
   cancelledReason String?
 
   createdAt DateTime @default(now())
@@ -195,7 +194,7 @@ model Payment {
   stripeCheckoutSessionId String? @unique
   stripePaymentIntentId   String? @unique
   /// Connected account that receives the funds.
-  connectedAccountId String?
+  connectedAccountId      String?
 
   amount         Int
   applicationFee Int

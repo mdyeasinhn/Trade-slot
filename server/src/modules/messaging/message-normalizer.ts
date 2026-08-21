@@ -1,5 +1,5 @@
 import { MessageDirection } from '@prisma/client';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import type {
   ChatReply,
   MessageChannel,
@@ -100,7 +100,7 @@ export async function processIncomingMessage(
       message.channel,
     );
   } catch (err) {
-    if (err instanceof ApiError && err.statusCode < 500) {
+    if (err instanceof AppError && err.statusCode < 500) {
       reply = { text: err.message };
     } else {
       throw err;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { prisma } from '../../lib/prisma';
 
@@ -14,6 +14,6 @@ export const getBusinessHandler = catchAsync(async (req: Request, res: Response)
     where: { id: param(req, 'id') },
     include: { traders: { select: { id: true, name: true, phone: true } } },
   });
-  if (!business) throw ApiError.notFound('Business not found.');
+  if (!business) throw AppError.notFound('Business not found.');
   sendResponse(res, 200, business);
 });

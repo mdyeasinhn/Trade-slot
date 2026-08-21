@@ -1,7 +1,7 @@
 import { constants } from '../../config/constants';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { createCheckoutSession } from './stripe.service';
 
 /**
@@ -15,7 +15,7 @@ export async function createPaymentForBooking(bookingId: string) {
     where: { id: bookingId },
     include: { payment: true, trader: true },
   });
-  if (!booking) throw ApiError.notFound('Booking not found.');
+  if (!booking) throw AppError.notFound('Booking not found.');
 
   // Idempotency: booking already has a payment.
   if (booking.payment) {
@@ -24,7 +24,7 @@ export async function createPaymentForBooking(bookingId: string) {
   }
 
   if (!booking.trader.stripeAccountId || !booking.trader.stripeOnboardingDone) {
-    throw ApiError.payment(
+    throw AppError.payment(
       'The trader is not connected to receive payments. Please complete Stripe onboarding.',
     );
   }

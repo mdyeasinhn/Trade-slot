@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { param } from '../../utils/params';
 import { getWorkArea, upsertWorkArea } from './workArea.service';
 import { listWorkAreaSchema, upsertWorkAreaSchema } from './workArea.validation';
@@ -9,7 +9,7 @@ import { listWorkAreaSchema, upsertWorkAreaSchema } from './workArea.validation'
 const upsertWorkAreaHandler = catchAsync(async (req: Request, res: Response) => {
   const traderId = param(req, 'id');
   if (req.auth?.traderId && req.auth.traderId !== traderId) {
-    throw ApiError.forbidden();
+    throw AppError.forbidden();
   }
   const input = upsertWorkAreaSchema.parse(req.body);
   const area = await upsertWorkArea(traderId, input);

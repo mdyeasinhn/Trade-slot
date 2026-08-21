@@ -1,6 +1,6 @@
 import { BookingStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { parseDate } from '../../utils/date';
 import { getTraderOrThrow } from '../traders/trader.service';
 import type { SlotRequest } from './booking.types';
@@ -49,7 +49,7 @@ export async function createBooking(request: SlotRequest) {
         select: { id: true, startTime: true, endTime: true, bufferMin: true },
       });
       if (blocked.some((b) => isBookingBlocked(b, resolved.start, resolved.end))) {
-        throw ApiError.slotUnavailable();
+        throw AppError.slotUnavailable();
       }
 
       return tx.booking.create({
@@ -74,7 +74,7 @@ export async function createBooking(request: SlotRequest) {
     return booking;
   } catch (err) {
     if (isUniqueViolation(err) || isExclusionViolation(err)) {
-      throw ApiError.doubleBooking();
+      throw AppError.doubleBooking();
     }
     throw err;
   }
@@ -113,7 +113,7 @@ export async function getBookingOrThrow(bookingId: string) {
     where: { id: bookingId },
     include: { payment: true },
   });
-  if (!booking) throw ApiError.notFound('Booking not found.');
+  if (!booking) throw AppError.notFound('Booking not found.');
   return booking;
 }
 
@@ -136,7 +136,7 @@ export async function updateBookingStatus(bookingId: string, next: BookingStatus
   if (!opts?.force && booking.status === next) return booking;
 
   if (!opts?.force && !statusTransitions[booking.status]?.includes(next)) {
-    throw ApiError.invalidState(
+    throw AppError.invalidState(
       `Cannot move booking from ${booking.status} to ${next}.`,
     );
   }

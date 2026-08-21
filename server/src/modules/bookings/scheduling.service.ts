@@ -1,6 +1,6 @@
 import { constants, parseTimeString } from '../../config/constants';
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { addMinutes, formatDateInTz, formatUtcDate, localDateTimeToUtc, parseDate, utcToLocalTime } from '../../utils/date';
 import { getTraderOrThrow } from '../traders/trader.service';
 import type { AvailableSlot, TraderWorkRules } from './booking.types';
@@ -166,14 +166,14 @@ export async function resolveSlotForBooking(params: {
     timezone,
   );
   if (end > windowEnd) {
-    throw ApiError.slotUnavailable(
+    throw AppError.slotUnavailable(
       'That start time is too late — the job would run past the working day.',
     );
   }
 
   const available = await isSlotAvailable(params.traderId, dateOnly, start, end, bufferMin);
   if (!available) {
-    throw ApiError.slotUnavailable();
+    throw AppError.slotUnavailable();
   }
 
   return {

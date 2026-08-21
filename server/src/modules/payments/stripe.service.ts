@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { env } from '../../config/env';
 import { getStripe } from '../../lib/stripe';
 
@@ -92,7 +92,7 @@ export async function createCheckoutSession(params: {
 export function constructStripeWebhookEvent(payload: string, signature: string) {
   const stripe = getStripe();
   if (!env.STRIPE_WEBHOOK_SECRET) {
-    throw ApiError.internal('STRIPE_WEBHOOK_SECRET is not configured.');
+    throw AppError.internal('STRIPE_WEBHOOK_SECRET is not configured.');
   }
   return stripe.webhooks.constructEvent(payload, signature, env.STRIPE_WEBHOOK_SECRET);
 }

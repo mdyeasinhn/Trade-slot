@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { prisma } from '../../lib/prisma';
 import { createPaymentForBooking } from './payment.service';
 import { createConnectOnboardingLink, getConnectAccountStatus } from './stripe.service';
@@ -15,13 +15,13 @@ export const createPaymentHandler = catchAsync(async (req: Request, res: Respons
 
 export const connectOnboardHandler = catchAsync(async (req: Request, res: Response) => {
   const traderId = req.auth?.traderId;
-  if (!traderId) throw ApiError.forbidden('Only a trader can connect a Stripe account.');
+  if (!traderId) throw AppError.forbidden('Only a trader can connect a Stripe account.');
 
   const trader = await prisma.trader.findUnique({
     where: { id: traderId },
     include: { user: { select: { email: true } } },
   });
-  if (!trader) throw ApiError.notFound('Trader not found.');
+  if (!trader) throw AppError.notFound('Trader not found.');
 
   const result = await createConnectOnboardingLink(trader.id, {
     stripeAccountId: trader.stripeAccountId,
@@ -41,10 +41,10 @@ export const connectOnboardHandler = catchAsync(async (req: Request, res: Respon
 
 export const connectStatusHandler = catchAsync(async (req: Request, res: Response) => {
   const traderId = req.auth?.traderId;
-  if (!traderId) throw ApiError.forbidden('Only a trader can view their Stripe status.');
+  if (!traderId) throw AppError.forbidden('Only a trader can view their Stripe status.');
 
   const trader = await prisma.trader.findUnique({ where: { id: traderId } });
-  if (!trader) throw ApiError.notFound('Trader not found.');
+  if (!trader) throw AppError.notFound('Trader not found.');
   if (!trader.stripeAccountId) {
     sendResponse(res, 200, { connected: false, onboardingComplete: false });
     return;

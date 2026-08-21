@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../../utils/catch-async';
 import { sendResponse } from '../../utils/send-response';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { prisma } from '../../lib/prisma';
 
 /**
@@ -9,7 +9,7 @@ import { prisma } from '../../lib/prisma';
  * identity (auth owns create/login). Kept separate from trader config.
  */
 export const meHandler = catchAsync(async (req: Request, res: Response) => {
-  if (!req.auth) throw ApiError.unauthorized();
+  if (!req.auth) throw AppError.unauthorized();
   const user = await prisma.user.findUnique({
     where: { id: req.auth.userId },
     select: {
@@ -21,6 +21,6 @@ export const meHandler = catchAsync(async (req: Request, res: Response) => {
       trader: { select: { id: true } },
     },
   });
-  if (!user) throw ApiError.notFound('User not found.');
+  if (!user) throw AppError.notFound('User not found.');
   sendResponse(res, 200, user);
 });

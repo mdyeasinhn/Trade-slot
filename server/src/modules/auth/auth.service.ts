@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import type { LoginInput, RegisterInput } from './auth.validation';
 
 function signToken(userId: string): string {
@@ -25,7 +25,7 @@ export interface AuthResult {
 /// Register a user; creates a Business + Trader for the new account.
 export async function register(input: RegisterInput): Promise<AuthResult> {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw ApiError.conflict('An account with that email already exists.');
+  if (existing) throw AppError.conflict('An account with that email already exists.');
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
@@ -73,10 +73,10 @@ export async function login(input: LoginInput): Promise<AuthResult> {
     where: { email: input.email },
     include: { trader: { select: { id: true } } },
   });
-  if (!user) throw ApiError.unauthorized('Invalid email or password.');
+  if (!user) throw AppError.unauthorized('Invalid email or password.');
 
   const valid = await bcrypt.compare(input.password, user.passwordHash);
-  if (!valid) throw ApiError.unauthorized('Invalid email or password.');
+  if (!valid) throw AppError.unauthorized('Invalid email or password.');
 
   return {
     token: signToken(user.id),

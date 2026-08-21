@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { parseDate } from '../../utils/date';
 import { getTraderOrThrow } from '../traders/trader.service';
 import type { UpsertWorkAreaInput } from './workArea.validation';
@@ -21,6 +21,6 @@ export async function getWorkArea(traderId: string, date: string) {
   const area = await prisma.workArea.findUnique({
     where: { traderId_date: { traderId, date: dateOnly } },
   });
-  if (!area) throw ApiError.notFound('No work area set for that date.');
+  if (!area) throw AppError.notFound('No work area set for that date.');
   return area;
 }

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import { ApiError, isApiError } from '../utils/errors';
+import { ZodError } from 'zod';
+import { AppError, isAppError } from '../utils/errors';
 
 /** Convert any thrown error into the consistent API error envelope. */
 export function errorMiddleware(
@@ -8,10 +9,25 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction,
 ): void {
-  if (isApiError(err)) {
+  if (isAppError(err)) {
     res.status(err.statusCode).json({
       success: false,
       error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) },
+    });
+    return;
+  }
+
+  if (err instanceof ZodError) {
+    const messages = err.issues.map((issue) => issue.message);
+    const validationError = AppError.validation(messages.join(' '), err.flatten());
+
+    res.status(validationError.statusCode).json({
+      success: false,
+      error: {
+        code: validationError.code,
+        message: validationError.message,
+        details: validationError.details,
+      },
     });
     return;
   }
@@ -29,14 +45,24 @@ export function errorMiddleware(
     return;
   }
 
-  // eslint-disable-next-line no-console
-  console.error('Unhandled error:', err);
+  const errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : 'Unknown error';
 
-  res.status(500).json({
+  // eslint-disable-next-line no-console
+  console.error('Unhandled error:', errorMessage);
+
+  const internalError = AppError.internal(
+    process.env.NODE_ENV === 'production'
+      ? undefined
+      : err instanceof Error
+        ? err.message
+        : 'An unexpected error occurred.',
+  );
+
+  res.status(internalError.statusCode).json({
     success: false,
     error: {
-      code: 'INTERNAL_ERROR',
-      message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred.' : String(err),
+      code: internalError.code,
+      message: internalError.message,
     },
   });
 }

@@ -1,4 +1,4 @@
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { env } from '../../config/env';
 
 /**
@@ -13,7 +13,7 @@ interface SendMessageParams {
 
 async function sendTextMessage({ to, text }: SendMessageParams) {
   if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
-    throw ApiError.internal('WhatsApp credentials are not configured.');
+    throw AppError.internal('WhatsApp credentials are not configured.');
   }
 
   const url = `https://graph.facebook.com/${env.WHATSAPP_API_VERSION}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
@@ -33,7 +33,7 @@ async function sendTextMessage({ to, text }: SendMessageParams) {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw ApiError.internal(`WhatsApp send failed (${res.status}): ${body}`);
+    throw AppError.internal(`WhatsApp send failed (${res.status}): ${body}`);
   }
 }
 

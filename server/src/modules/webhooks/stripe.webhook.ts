@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { BookingStatus, PaymentStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { ApiError } from '../../utils/errors';
+import { AppError } from '../../utils/errors';
 import { constructStripeWebhookEvent } from '../payments/stripe.service';
 
 /**
@@ -109,7 +109,7 @@ async function handleCheckoutCompleted(session: {
   const payment = await prisma.payment.findFirst({
     where: { stripeCheckoutSessionId: session.id },
   });
-  if (!payment) throw ApiError.notFound('No payment record for this checkout session.');
+  if (!payment) throw AppError.notFound('No payment record for this checkout session.');
 
   const paymentIntentId = session.payment_intent ?? undefined;
 
@@ -124,10 +124,10 @@ async function handleCheckoutCompleted(session: {
     });
 
     const booking = await tx.booking.findUnique({ where: { id: payment.bookingId } });
-    if (!booking) throw ApiError.notFound('Booking for payment not found.');
+    if (!booking) throw AppError.notFound('Booking for payment not found.');
 
     if (booking.status === BookingStatus.CANCELLED) {
-      throw ApiError.invalidState('Cannot mark a cancelled booking as PAID.');
+      throw AppError.invalidState('Cannot mark a cancelled booking as PAID.');
     }
 
     await tx.booking.update({
