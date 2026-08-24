@@ -1,30 +1,17 @@
-import "@testing-library/jest-dom";
-import { vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+import { webcrypto } from "node:crypto";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    prefetch: vi.fn(),
-    back: vi.fn(),
-  }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock("next/headers", () => ({
-  cookies: () => ({
-    get: vi.fn(),
-    set: vi.fn(),
-    delete: vi.fn(),
-  }),
-}));
-
-Object.defineProperty(window, "localStorage", {
-  value: {
-    getItem: vi.fn(),
-    setItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
-  writable: true,
+// `globals: false`, so Testing Library's auto-cleanup hook is not installed.
+afterEach(() => {
+  cleanup();
 });
+
+// jsdom does not always expose `crypto.randomUUID`, which `useSenderId` needs.
+if (typeof globalThis.crypto?.randomUUID !== "function") {
+  Object.defineProperty(globalThis, "crypto", {
+    value: webcrypto,
+    configurable: true,
+  });
+}
