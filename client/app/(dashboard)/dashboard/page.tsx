@@ -3,10 +3,10 @@ import { getBookings, getWorkArea, getStripeConnectStatus } from "@/lib/api/endp
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "next/link";
+import Link from "next/link";
 import { Calendar, CreditCard, Plus, ArrowRight, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
-import { formatMoney, formatDate, formatTime } from "@/lib/format";
-import type { Booking, BookingStatus, WorkArea } from "@/lib/api/types";
+import { formatDate, formatTime } from "@/lib/format";
+import type { BookingStatus } from "@/lib/api/types";
 
 export default async function DashboardPage() {
   const { trader } = await requireTrader();
@@ -29,14 +29,14 @@ export default async function DashboardPage() {
         return <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" /> Paid</Badge>;
       case "CONFIRMED":
         return <Badge variant="default"><Clock className="mr-1 h-3 w-3" /> Confirmed</Badge>;
-      case "PENDING":
+      case "REQUESTED":
         return <Badge variant="warning"><AlertCircle className="mr-1 h-3 w-3" /> Pending</Badge>;
       case "CANCELLED":
         return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Cancelled</Badge>;
       case "COMPLETED":
         return <Badge variant="secondary"><CheckCircle className="mr-1 h-3 w-3" /> Completed</Badge>;
-      case "NO_SHOW":
-        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> No Show</Badge>;
+      case "PAYMENT_PENDING":
+        return <Badge variant="warning"><AlertCircle className="mr-1 h-3 w-3" /> Payment Pending</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium">Today&apos;s Bookings</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -78,12 +78,12 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {workArea ? (
-              <div className="text-2xl font-bold">{workArea.radiusKm}km</div>
+              <div className="text-2xl font-bold">{workArea.area}</div>
             ) : (
               <div className="text-2xl font-bold text-muted-foreground">Not set</div>
             )}
             <p className="text-xs text-muted-foreground">
-              {workArea ? `Radius: ${workArea.radiusKm}km` : "Set your work area to accept bookings"}
+              {workArea ? "Work area set for today" : "Set your work area to accept bookings"}
             </p>
           </CardContent>
         </Card>
@@ -109,7 +109,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
+            <CardTitle>Today&apos;s Schedule</CardTitle>
             <CardDescription>Bookings for {formatDate(today)}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
                         <Clock className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{booking.customerName}</p>
+                          <p className="font-medium">{booking.customerName}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatTime(booking.startTime.split("T")[1].slice(0, 5))} - {formatTime(booking.endTime.split("T")[1].slice(0, 5))}
                         </p>

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireTrader } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,7 +18,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, trader } = await requireTrader();
+  const { user } = await requireTrader();
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,6 +45,10 @@ export default async function DashboardLayout({
                 <CreditCard className="h-4 w-4" />
                 Stripe
               </Link>
+              <Link href="/dashboard/profile" className="text-sm font-medium hover:text-primary flex items-center gap-1">
+                <User className="h-4 w-4" />
+                Profile
+              </Link>
             </div>
           </nav>
 
@@ -68,21 +71,26 @@ export default async function DashboardLayout({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
+                  <Link href="/dashboard/profile" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/dashboard/settings/stripe" className="flex items-center gap-2">
                     <Settings className="h-4 w-4" />
                     Settings
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await logoutAction();
-                  }}
-                  className="text-destructive focus:text-destructive flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
+                <form action={logoutAction}>
+                  <DropdownMenuItem asChild>
+                    <button type="submit" className="w-full text-destructive focus:text-destructive flex items-center gap-2">
+                      <LogOut className="h-4 w-4" />
+                      Log out
+                    </button>
+                  </DropdownMenuItem>
+                </form>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

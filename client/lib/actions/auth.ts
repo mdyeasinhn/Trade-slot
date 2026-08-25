@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { setAuthCookie, clearAuthCookie } from "@/lib/auth";
-import { registerUser, loginUser } from "@/lib/api/endpoints";
-import type { ApiError } from "@/lib/api/types";
+import { apiPost } from "@/lib/api/client";
+import { endpoints } from "@/lib/api/endpoints";
+import type { ApiError, AuthResult as ApiAuthResult } from "@/lib/api/types";
 
 export interface AuthResult {
   success: boolean;
@@ -20,15 +21,21 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
     return { success: false, error: "All fields are required" };
   }
 
+  let result: ApiAuthResult;
   try {
-    const result = await registerUser({ email, password, name });
-    await setAuthCookie(result.token);
-    revalidatePath("/dashboard");
-    redirect("/dashboard");
+    result = await apiPost<ApiAuthResult>(
+      endpoints.auth.register,
+      { email, password, name },
+      false
+    );
   } catch (e) {
     const error = e as ApiError;
     return { success: false, error: error.message };
   }
+
+  await setAuthCookie(result.token);
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
 
 export async function loginAction(formData: FormData): Promise<AuthResult> {
@@ -39,15 +46,21 @@ export async function loginAction(formData: FormData): Promise<AuthResult> {
     return { success: false, error: "Email and password are required" };
   }
 
+  let result: ApiAuthResult;
   try {
-    const result = await loginUser({ email, password });
-    await setAuthCookie(result.token);
-    revalidatePath("/dashboard");
-    redirect("/dashboard");
+    result = await apiPost<ApiAuthResult>(
+      endpoints.auth.login,
+      { email, password },
+      false
+    );
   } catch (e) {
     const error = e as ApiError;
     return { success: false, error: error.message };
   }
+
+  await setAuthCookie(result.token);
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
 
 export async function logoutAction(): Promise<void> {

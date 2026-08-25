@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loginUser } from "@/lib/api/endpoints";
-import { setAuthCookie, getServerEnv } from "@/lib/auth";
+import { apiPost } from "@/lib/api/client";
+import { endpoints } from "@/lib/api/endpoints";
+import { setAuthCookie } from "@/lib/auth";
+import type { AuthResult } from "@/lib/api/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Email and password are required" }, { status: 400 });
     }
 
-    const result = await loginUser({ email, password });
+    const result = await apiPost<AuthResult>(endpoints.auth.login, { email, password }, false);
     await setAuthCookie(result.token);
 
     return NextResponse.json({ success: true });

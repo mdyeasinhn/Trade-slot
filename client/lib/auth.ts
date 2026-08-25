@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerEnv } from "@/lib/env";
 import { apiGet } from "@/lib/api/client";
-import type { User, Trader } from "@/lib/api/types";
+import type { CurrentUser, Trader } from "@/lib/api/types";
 
 export const AUTH_COOKIE_NAME = "tradeslot_session";
 
-export async function getSession(): Promise<{ user: User; trader: Trader } | null> {
+export async function getSession(): Promise<{ user: CurrentUser; trader: Trader } | null> {
   const cookieStore = await cookies();
   const env = getServerEnv();
   const token = cookieStore.get(env.AUTH_COOKIE_NAME)?.value;
@@ -14,15 +14,17 @@ export async function getSession(): Promise<{ user: User; trader: Trader } | nul
   if (!token) return null;
 
   try {
-    const user = await apiGet("/api/users/me");
-    const trader = await apiGet(`/api/traders/${user.id}`);
+    const user = await apiGet<CurrentUser>("/api/users/me");
+    if (!user.trader) return null;
+
+    const trader = await apiGet<Trader>(`/api/traders/${user.trader.id}`);
     return { user, trader };
   } catch {
     return null;
   }
 }
 
-export async function requireTrader(): Promise<{ user: User; trader: Trader }> {
+export async function requireTrader(): Promise<{ user: CurrentUser; trader: Trader }> {
   const session = await getSession();
   if (!session) {
     redirect("/login");
