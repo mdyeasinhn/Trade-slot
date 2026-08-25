@@ -18,9 +18,14 @@ const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
+  businessName: z.string(),
+  phone: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => data.businessName.trim() || data.phone.trim(), {
+  message: "Business name or phone is required",
+  path: ["businessName"],
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -44,6 +49,8 @@ export default function RegisterPage() {
     formData.append("email", data.email);
     formData.append("password", data.password);
     formData.append("confirmPassword", data.confirmPassword);
+    formData.append("businessName", data.businessName);
+    formData.append("phone", data.phone);
     const result = await registerAction(formData);
     if (result.success) {
       router.push("/dashboard");
@@ -86,6 +93,31 @@ export default function RegisterPage() {
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="businessName">Business Name</Label>
+              <Input
+                id="businessName"
+                placeholder="Smith Plumbing"
+                {...register("businessName")}
+                disabled={isLoading}
+              />
+              {errors.businessName && (
+                <p className="text-sm text-destructive">{errors.businessName.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1 555 000 0000"
+                {...register("phone")}
+                disabled={isLoading}
+              />
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone.message}</p>
               )}
             </div>
             <div className="space-y-2">

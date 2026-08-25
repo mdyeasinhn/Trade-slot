@@ -16,16 +16,21 @@ export async function registerAction(formData: FormData): Promise<AuthResult> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const name = formData.get("name") as string;
+  const businessName = (formData.get("businessName") as string | null)?.trim() || undefined;
+  const phone = (formData.get("phone") as string | null)?.trim() || undefined;
 
   if (!email || !password || !name) {
     return { success: false, error: "All fields are required" };
+  }
+  if (!businessName && !phone) {
+    return { success: false, error: "Business name or phone is required" };
   }
 
   let result: ApiAuthResult;
   try {
     result = await apiPost<ApiAuthResult>(
       endpoints.auth.register,
-      { email, password, name },
+      { email, password, name, businessName, phone },
       false
     );
   } catch (e) {

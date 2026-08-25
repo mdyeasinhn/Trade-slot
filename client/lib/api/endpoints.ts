@@ -61,7 +61,13 @@ export function getHealth(): Promise<HealthResponse> {
   return apiGet(endpoints.health, false);
 }
 
-export function registerUser(data: { email: string; password: string; name: string }): Promise<AuthResult> {
+export function registerUser(data: {
+  email: string;
+  password: string;
+  name: string;
+  businessName?: string;
+  phone?: string;
+}): Promise<AuthResult> {
   return apiPost(endpoints.auth.register, data, false);
 }
 
