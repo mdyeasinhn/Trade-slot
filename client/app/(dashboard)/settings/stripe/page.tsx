@@ -7,23 +7,28 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { getStripeOnboardUrlAction, getStripeStatusAction, refreshStripeStatusAction } from "@/lib/actions/stripe";
 import { toast } from "@/components/ui/sonner";
-import { Loader2, CreditCard, CheckCircle, AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
-import type { StripeConnectStatus } from "@/lib/api/types";
+import { Loader2, CreditCard, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+import type { ConnectStatus } from "@/lib/api/types";
 
 export default function StripeSettingsPage() {
-  const [status, setStatus] = useState<StripeConnectStatus | null>(null);
+  const [status, setStatus] = useState<ConnectStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboarding, setOnboarding] = useState(false);
 
-  const fetchStatus = async () => {
-    setIsLoading(true);
-    const result = await getStripeStatusAction();
-    setStatus(result);
-    setIsLoading(false);
-  };
-
   useEffect(() => {
-    fetchStatus();
+    let cancelled = false;
+
+    getStripeStatusAction().then((result) => {
+      if (cancelled) return;
+      setStatus(result.status);
+      setStatusError(result.error ?? null);
+      setIsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleOnboard = async () => {
@@ -45,9 +50,14 @@ export default function StripeSettingsPage() {
   const handleRefresh = async () => {
     setIsLoading(true);
     const result = await refreshStripeStatusAction();
-    setStatus(result);
+    setStatus(result.status);
+    setStatusError(result.error ?? null);
     setIsLoading(false);
-    toast.success("Status refreshed");
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Status refreshed");
+    }
   };
 
   if (isLoading && !status) {
@@ -95,6 +105,11 @@ export default function StripeSettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {statusError && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+              Unable to load Stripe status: {statusError}
+            </div>
+          )}
           {!status?.connected ? (
             <div className="space-y-4">
               <div className="p-4 border border-dashed rounded-lg">
@@ -146,14 +161,7 @@ export default function StripeSettingsPage() {
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Refresh Status
                 </Button>
-                {status.onboardingUrl && (
-                  <Button variant="outline" asChild>
-                    <a href={status.onboardingUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Complete Onboarding
-                    </a>
-                  </Button>
-                )}
+                {/* onboardingUrl not available in ConnectStatus type */}
               </div>
             </div>
           )}
@@ -165,7 +173,7 @@ export default function StripeSettingsPage() {
           <CardTitle>How it works</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>• When you connect Stripe, you'll be redirected to Stripe's onboarding flow</p>
+          <p>• When you connect Stripe, you&apos;ll be redirected to Stripe&apos;s onboarding flow</p>
           <p>• Complete the required business and banking information</p>
           <p>• Once connected, customers can pay deposits and full amounts via Stripe Checkout</p>
           <p>• Payments are automatically linked to bookings via webhooks</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateBookingStatusAction, createPaymentSessionAction } from "@/lib/actions/bookings";
+import { getBookingAction, updateBookingStatusAction, createPaymentSessionAction } from "@/lib/actions/bookings";
 import { toast } from "@/components/ui/sonner";
-import { Loader2, Calendar, Clock, MapPin, Mail, Phone, CreditCard, CheckCircle, AlertCircle, XCircle, ArrowRight } from "lucide-react";
+import { Loader2, Calendar, Clock, CreditCard, CheckCircle, AlertCircle, XCircle, ArrowRight } from "lucide-react";
 import { formatMoney, formatDate, formatTime } from "@/lib/format";
 import type { Booking, BookingStatus } from "@/lib/api/types";
 
@@ -21,19 +21,19 @@ interface Props {
 const statusConfig: Record<BookingStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "secondary"; icon: React.ReactNode }> = {
   PAID: { label: "Paid", variant: "success", icon: <CheckCircle className="h-3 w-3" /> },
   CONFIRMED: { label: "Confirmed", variant: "default", icon: <Clock className="h-3 w-3" /> },
-  PENDING: { label: "Pending", variant: "warning", icon: <AlertCircle className="h-3 w-3" /> },
+  PAYMENT_PENDING: { label: "Payment Pending", variant: "warning", icon: <AlertCircle className="h-3 w-3" /> },
   CANCELLED: { label: "Cancelled", variant: "destructive", icon: <XCircle className="h-3 w-3" /> },
   COMPLETED: { label: "Completed", variant: "secondary", icon: <CheckCircle className="h-3 w-3" /> },
-  NO_SHOW: { label: "No Show", variant: "destructive", icon: <XCircle className="h-3 w-3" /> },
+  REQUESTED: { label: "Requested", variant: "default", icon: <Clock className="h-3 w-3" /> },
 };
 
 const statusOptions: { value: BookingStatus; label: string }[] = [
-  { value: "PENDING", label: "Pending" },
+  { value: "REQUESTED", label: "Requested" },
   { value: "CONFIRMED", label: "Confirmed" },
+  { value: "PAYMENT_PENDING", label: "Payment Pending" },
   { value: "PAID", label: "Paid" },
   { value: "CANCELLED", label: "Cancelled" },
   { value: "COMPLETED", label: "Completed" },
-  { value: "NO_SHOW", label: "No Show" },
 ];
 
 export default function BookingDetailPage({ params }: Props) {
@@ -43,22 +43,29 @@ export default function BookingDetailPage({ params }: Props) {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState(false);
 
-  const { icon, label, variant } = statusConfig[booking?.status as BookingStatus] || statusConfig.PENDING;
+  const { icon, label, variant } = statusConfig[booking?.status as BookingStatus] || statusConfig.REQUESTED;
 
-  const fetchBooking = async () => {
-    const { id } = await params;
-    try {
-      const res = await fetch(`/api/bookings/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setBooking(data);
-      }
-    } catch {
-      toast.error("Failed to load booking");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    let isActive = true;
+    void params
+      .then(({ id }) => getBookingAction(id))
+      .then((result) => {
+        if (isActive) {
+          setBooking(result);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          toast.error("Failed to load booking");
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [params]);
 
   const handleStatusChange = async (newStatus: BookingStatus) => {
     if (!booking) return;
@@ -148,26 +155,16 @@ export default function BookingDetailPage({ params }: Props) {
                   <p>{booking.customerName}</p>
                 </div>
                 <div className="space-y-1">
-                  <Label>Email</Label>
-                  <p>{booking.customerEmail}</p>
+                  <Label>Phone</Label>
+                  <p>{booking.customerPhone}</p>
                 </div>
-                {booking.customerPhone && (
-                  <div className="space-y-1">
-                    <Label>Phone</Label>
-                    <p>{booking.customerPhone}</p>
-                  </div>
-                )}
               </div>
 
               <Separator />
 
               <div className="space-y-1">
-                <Label>Address</Label>
-                <div className="space-y-1">
-                  <p className="font-medium">{booking.addressLine1}</p>
-                  {booking.addressLine2 && <p>{booking.addressLine2}</p>}
-                  <p>{booking.city}, {booking.postcode}</p>
-                </div>
+                <Label>Service</Label>
+                <p>{booking.serviceDescription || "No description provided"}</p>
               </div>
 
               <Separator />
@@ -197,21 +194,21 @@ export default function BookingDetailPage({ params }: Props) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between text-lg">
-                <span>Total Price</span>
-                <span className="font-bold">{formatMoney(booking.priceCents)}</span>
+                <span>Booking Fee</span>
+                <span className="font-bold">{formatMoney(booking.bookingFee)}</span>
               </div>
-              {booking.depositCents > 0 && (
+              {booking.payment && booking.payment.amount > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Deposit Paid</span>
-                  <span>{formatMoney(booking.depositCents)}</span>
+                  <span>Amount Paid</span>
+                  <span>{formatMoney(booking.payment.amount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t pt-4">
                 <span className="font-medium">Balance Due</span>
-                <span className="font-bold text-lg">{formatMoney(booking.priceCents - booking.depositCents)}</span>
+                <span className="font-bold text-lg">{formatMoney(Math.max(0, booking.bookingFee - (booking.payment?.amount || 0)))}</span>
               </div>
 
-              {booking.status === "PENDING" && booking.depositCents < booking.priceCents && (
+              {booking.status === "PAYMENT_PENDING" && (booking.payment?.amount || 0) < booking.bookingFee && (
                 <Button onClick={handleCreatePayment} disabled={creatingPayment} className="w-full" size="lg">
                   {creatingPayment ? (
                     <>

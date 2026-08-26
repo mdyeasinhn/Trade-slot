@@ -1,27 +1,31 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { setWorkArea, getWorkArea } from "@/lib/api/endpoints";
-import type { ApiError } from "@/lib/api/types";
+import { setWorkArea, getWorkArea, getBookings } from "@/lib/api/endpoints";
+import { getSession } from "@/lib/auth";
+import type { ApiError, Booking } from "@/lib/api/types";
 
 export interface WorkAreaResult {
   success: boolean;
   error?: string;
-  data?: { date: string; centerLat: number; centerLng: number; radiusKm: number };
+  data?: { date: string; area: string };
 }
 
 export async function setWorkAreaAction(formData: FormData): Promise<WorkAreaResult> {
   const date = formData.get("date") as string;
-  const centerLat = parseFloat(formData.get("centerLat") as string);
-  const centerLng = parseFloat(formData.get("centerLng") as string);
-  const radiusKm = parseFloat(formData.get("radiusKm") as string);
+  const area = formData.get("area") as string;
 
-  if (!date || isNaN(centerLat) || isNaN(centerLng) || isNaN(radiusKm)) {
+  if (!date || !area) {
     return { success: false, error: "All fields are required" };
   }
 
+  const session = await getSession();
+  if (!session?.trader?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
   try {
-    const result = await setWorkArea("", { date, centerLat, centerLng, radiusKm });
+    const result = await setWorkArea(session.trader.id, { date, area });
     revalidatePath("/dashboard/work-area");
     return { success: true, data: result };
   } catch (e) {
@@ -31,9 +35,26 @@ export async function setWorkAreaAction(formData: FormData): Promise<WorkAreaRes
 }
 
 export async function getWorkAreaAction(date: string) {
+  const session = await getSession();
+  if (!session?.trader?.id) {
+    return null;
+  }
   try {
-    return await getWorkArea("", date);
+    return await getWorkArea(session.trader.id, date);
   } catch {
     return null;
+  }
+}
+
+export async function getBookingsAction(date: string): Promise<Booking[]> {
+  const session = await getSession();
+  if (!session?.trader?.id) {
+    return [];
+  }
+
+  try {
+    return await getBookings(date);
+  } catch {
+    return [];
   }
 }

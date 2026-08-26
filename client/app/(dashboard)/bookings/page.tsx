@@ -1,6 +1,6 @@
 import { requireTrader } from "@/lib/auth";
 import { getBookings } from "@/lib/api/endpoints";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,14 @@ const statusBadge = (status: BookingStatus) => {
       return <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" /> Paid</Badge>;
     case "CONFIRMED":
       return <Badge variant="default"><Clock className="mr-1 h-3 w-3" /> Confirmed</Badge>;
-    case "PENDING":
-      return <Badge variant="warning"><AlertCircle className="mr-1 h-3 w-3" /> Pending</Badge>;
+    case "PAYMENT_PENDING":
+      return <Badge variant="warning"><AlertCircle className="mr-1 h-3 w-3" /> Payment Pending</Badge>;
     case "CANCELLED":
       return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Cancelled</Badge>;
     case "COMPLETED":
       return <Badge variant="secondary"><CheckCircle className="mr-1 h-3 w-3" /> Completed</Badge>;
-    case "NO_SHOW":
-      return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> No Show</Badge>;
+    case "REQUESTED":
+      return <Badge variant="outline"><Clock className="mr-1 h-3 w-3" /> Requested</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -62,8 +62,8 @@ export default async function BookingsPage() {
                   <TableRow>
                     <TableHead>Customer</TableHead>
                     <TableHead>Date & Time</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Price</TableHead>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Fee</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -74,10 +74,7 @@ export default async function BookingsPage() {
                       <TableCell>
                         <div>
                           <p className="font-medium">{booking.customerName}</p>
-                          <p className="text-sm text-muted-foreground">{booking.customerEmail}</p>
-                          {booking.customerPhone && (
-                            <p className="text-sm text-muted-foreground">{booking.customerPhone}</p>
-                          )}
+                          <p className="text-sm text-muted-foreground">{booking.customerPhone}</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -91,16 +88,14 @@ export default async function BookingsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="max-w-xs">
-                          <p className="font-medium truncate">{booking.addressLine1}</p>
-                          {booking.addressLine2 && <p className="text-sm text-muted-foreground truncate">{booking.addressLine2}</p>}
-                          <p className="text-sm text-muted-foreground">{booking.city}, {booking.postcode}</p>
+                          <p className="font-medium truncate">{booking.serviceDescription || "No description"}</p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{formatMoney(booking.priceCents)}</p>
-                          {booking.depositCents > 0 && (
-                            <p className="text-sm text-muted-foreground">Deposit: {formatMoney(booking.depositCents)}</p>
+                          <p className="font-medium">{formatMoney(booking.bookingFee)}</p>
+                          {booking.payment && booking.payment.amount > 0 && (
+                            <p className="text-sm text-muted-foreground">Paid: {formatMoney(booking.payment.amount)}</p>
                           )}
                         </div>
                       </TableCell>

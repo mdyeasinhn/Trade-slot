@@ -98,6 +98,7 @@ export interface Trader {
   bufferMin: number | null;
   /** Minor units. Resolved server-side; never sent by the client. */
   bookingFee: number | null;
+  currency: string;
   stripeAccountId: string | null;
   stripeOnboardingDone: boolean;
   stripeChargesEnabled: boolean;
@@ -152,6 +153,13 @@ export interface BookingPayment {
   checkoutUrl: string | null;
   stripePaymentIntentId: string | null;
   stripeCheckoutSessionId: string | null;
+  connectedAccountId: string | null;
+  amount: number;
+  applicationFee: number;
+  currency: string;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Booking {

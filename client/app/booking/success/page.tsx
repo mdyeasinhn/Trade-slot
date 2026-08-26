@@ -15,10 +15,10 @@ interface Props {
 const statusConfig: Record<BookingStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "secondary"; icon: React.ReactNode }> = {
   PAID: { label: "Paid", variant: "success", icon: <CheckCircle className="h-4 w-4" /> },
   CONFIRMED: { label: "Confirmed", variant: "default", icon: <CheckCircle className="h-4 w-4" /> },
-  PENDING: { label: "Pending", variant: "warning", icon: <Loader2 className="h-4 w-4 animate-spin" /> },
+  PAYMENT_PENDING: { label: "Payment Pending", variant: "warning", icon: <Loader2 className="h-4 w-4 animate-spin" /> },
   CANCELLED: { label: "Cancelled", variant: "destructive", icon: <AlertCircle className="h-4 w-4" /> },
   COMPLETED: { label: "Completed", variant: "secondary", icon: <CheckCircle className="h-4 w-4" /> },
-  NO_SHOW: { label: "No Show", variant: "destructive", icon: <AlertCircle className="h-4 w-4" /> },
+  REQUESTED: { label: "Requested", variant: "default", icon: <Clock className="h-4 w-4" /> },
 };
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
@@ -86,7 +86,7 @@ export default async function SuccessPage({ searchParams }: Props) {
   const { icon, label, variant } = statusConfig[booking.status];
 
   const isPaid = booking.status === "PAID";
-  const isPending = booking.status === "PENDING";
+  const isPending = booking.status === "PAYMENT_PENDING";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted px-4 py-16">
@@ -142,9 +142,8 @@ export default async function SuccessPage({ searchParams }: Props) {
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 <MapPin className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{booking.addressLine1}</p>
-                  <p className="text-sm text-muted-foreground">{booking.city}, {booking.postcode}</p>
+                  <p className="text-sm text-muted-foreground">Service</p>
+                  <p className="font-medium">{booking.serviceDescription || "No description provided"}</p>
                 </div>
               </div>
 
@@ -152,7 +151,7 @@ export default async function SuccessPage({ searchParams }: Props) {
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-medium">{formatMoney(booking.priceCents)}</p>
+                  <p className="font-medium">{formatMoney(booking.bookingFee)}</p>
                 </div>
               </div>
             </div>

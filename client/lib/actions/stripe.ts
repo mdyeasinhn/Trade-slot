@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getStripeConnectOnboardUrl, getStripeConnectStatus } from "@/lib/api/endpoints";
-import type { ApiError, StripeConnectStatus } from "@/lib/api/types";
+import type { ApiError, ConnectStatus } from "@/lib/api/types";
 
 export async function getStripeOnboardUrlAction(): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
@@ -14,15 +14,16 @@ export async function getStripeOnboardUrlAction(): Promise<{ success: boolean; u
   }
 }
 
-export async function getStripeStatusAction(): Promise<StripeConnectStatus | null> {
+export async function getStripeStatusAction(): Promise<{ status: ConnectStatus | null; error?: string }> {
   try {
-    return await getStripeConnectStatus();
-  } catch {
-    return null;
+    return { status: await getStripeConnectStatus() };
+  } catch (e) {
+    const error = e as ApiError;
+    return { status: null, error: error.message };
   }
 }
 
-export async function refreshStripeStatusAction(): Promise<StripeConnectStatus | null> {
+export async function refreshStripeStatusAction(): Promise<{ status: ConnectStatus | null; error?: string }> {
   revalidatePath("/dashboard/settings/stripe");
   return getStripeStatusAction();
 }

@@ -87,7 +87,7 @@ export function getTrader(id: string): Promise<Trader> {
   return apiGet(endpoints.traders.byId(id));
 }
 
-export function updateTrader(id: string, data: Partial<Pick<Trader, "name" | "phone">>): Promise<Trader> {
+export function updateTrader(id: string, data: Partial<Pick<Trader, "name" | "phone" | "timezone" | "workDayStart" | "workDayEnd">>): Promise<Trader> {
   return apiPatch(endpoints.traders.byId(id), data);
 }
 
