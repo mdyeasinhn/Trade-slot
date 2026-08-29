@@ -218,7 +218,7 @@ export default function BookingDetailPage({ params }: Props) {
                   ) : (
                     <>
                       <CreditCard className="mr-2 h-4 w-4" />
-                      Create Payment Link
+                      Pay with Stripe
                     </>
                   )}
                 </Button>

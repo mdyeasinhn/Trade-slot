@@ -9,7 +9,7 @@ import { formatMoney, formatDate, formatTime } from "@/lib/format";
 import type { Booking, BookingStatus } from "@/lib/api/types";
 
 interface Props {
-  searchParams: Promise<{ booking_id?: string; session_id?: string }>;
+  searchParams: Promise<{ bookingId?: string; booking_id?: string; session_id?: string }>;
 }
 
 const statusConfig: Record<BookingStatus, { label: string; variant: "default" | "success" | "warning" | "destructive" | "secondary"; icon: React.ReactNode }> = {
@@ -22,10 +22,11 @@ const statusConfig: Record<BookingStatus, { label: string; variant: "default" | 
 };
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const { booking_id } = await searchParams;
-  if (booking_id) {
+  const { bookingId, booking_id } = await searchParams;
+  const id = bookingId ?? booking_id;
+  if (id) {
     try {
-      const booking = await getBooking(booking_id);
+      const booking = await getBooking(id);
       return {
         title: `Booking ${booking.status} - TradeSlot`,
         description: `Your booking with ${booking.customerName} is ${booking.status.toLowerCase()}`,
@@ -40,9 +41,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function SuccessPage({ searchParams }: Props) {
-  const { booking_id } = await searchParams;
+  const { bookingId, booking_id } = await searchParams;
+  const id = bookingId ?? booking_id;
 
-  if (!booking_id) {
+  if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
         <Card className="w-full max-w-md text-center">
@@ -61,7 +63,7 @@ export default async function SuccessPage({ searchParams }: Props) {
 
   let booking: Booking | null = null;
   try {
-    booking = await getBooking(booking_id);
+    booking = await getBooking(id);
   } catch {
     // Booking not found
   }
@@ -89,7 +91,7 @@ export default async function SuccessPage({ searchParams }: Props) {
   const isPending = booking.status === "PAYMENT_PENDING";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted px-4 py-16">
+    <div className="min-h-screen bg-linear-to-b from-background to-muted px-4 py-16">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center">
           <div className={cn("inline-flex items-center justify-center w-16 h-16 rounded-full mb-4",
@@ -106,8 +108,8 @@ export default async function SuccessPage({ searchParams }: Props) {
             {isPaid
               ? "Your payment has been processed successfully"
               : isPending
-              ? "We're confirming your payment. This usually takes a few moments."
-              : `Booking status: ${label}`}
+                ? "We're confirming your payment. This usually takes a few moments."
+                : `Booking status: ${label}`}
           </p>
         </div>
 

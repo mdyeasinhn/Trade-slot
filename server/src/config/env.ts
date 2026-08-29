@@ -23,9 +23,9 @@ const envSchema = z.object({
     .transform((v) =>
       v
         ? v
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
         : ['http://localhost:3000'],
     ),
 

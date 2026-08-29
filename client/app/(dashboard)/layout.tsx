@@ -41,7 +41,7 @@ export default async function DashboardLayout({
                 <Calendar className="h-4 w-4" />
                 Bookings
               </Link>
-              <Link href="/dashboard/settings/stripe" className="text-sm font-medium hover:text-primary flex items-center gap-1">
+              <Link href="/settings/stripe" className="text-sm font-medium hover:text-primary flex items-center gap-1">
                 <CreditCard className="h-4 w-4" />
                 Stripe
               </Link>
@@ -77,7 +77,7 @@ export default async function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings/stripe" className="flex items-center gap-2">
+                  <Link href="/settings/stripe" className="flex items-center gap-2">
                     <Settings className="h-4 w-4" />
                     Settings
                   </Link>

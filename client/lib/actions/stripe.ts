@@ -24,6 +24,6 @@ export async function getStripeStatusAction(): Promise<{ status: ConnectStatus |
 }
 
 export async function refreshStripeStatusAction(): Promise<{ status: ConnectStatus | null; error?: string }> {
-  revalidatePath("/dashboard/settings/stripe");
+  revalidatePath("/settings/stripe");
   return getStripeStatusAction();
 }

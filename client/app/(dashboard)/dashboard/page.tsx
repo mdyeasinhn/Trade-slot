@@ -200,7 +200,7 @@ export default async function DashboardPage() {
                 <h3 className="font-medium">Stripe not connected</h3>
                 <p className="text-sm text-muted-foreground">Connect your Stripe account to accept payments for bookings.</p>
               </div>
-              <Link href="/dashboard/settings/stripe">
+              <Link href="/settings/stripe">
                 <Button>Connect Stripe</Button>
               </Link>
             </div>
